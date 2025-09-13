@@ -4,34 +4,37 @@ from dotenv import load_dotenv
 import google.generativeai as genai
 import fitz  # PyMuPDF
 import docx
-# --- LangChain Imports ---
+
+# --- LangChain & AI Model Imports (Updated) ---
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_community.vectorstores import FAISS
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.chains.question_answering import load_qa_chain
 from langchain.prompts import PromptTemplate
+# --- NEW: Import for local Hugging Face embeddings ---
+from langchain_community.embeddings import HuggingFaceEmbeddings
+# --- Generative LLM Imports ---
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_groq import ChatGroq
 
-# Load environment variables from .env file
+# --- Load Environment Variables ---
 load_dotenv()
 
-# --- Page & API Configuration ---
+# --- Page Configuration ---
 st.set_page_config(
     page_title="GenAI Resume Optimizer",
-    page_icon="📄",
+    page_icon="🤖",
     layout="centered",
 )
-try:
-    api_key = os.getenv("GOOGLE_API_KEY")
-    if not api_key:
-        st.error("🚨 Google API Key not found! Please add it to your .env file.")
-        st.stop()
-    genai.configure(api_key=api_key)
-except Exception as e:
-    st.error(f"🚨 An error occurred during API configuration: {e}")
-    st.stop()
 
-# --- Text Extraction Function ---
+# --- API Key Configuration ---
+try:
+    google_api_key = os.getenv("GOOGLE_API_KEY")
+    if google_api_key:
+        genai.configure(api_key=google_api_key)
+except Exception as e:
+    st.warning(f"Could not configure Google API key: {e}")
+
+# --- Text Extraction Function (No changes here) ---
 def get_text_from_files(uploaded_file):
     text = ""
     file_name = uploaded_file.name
@@ -61,12 +64,12 @@ def get_text_chunks(text):
     return chunks
 
 def get_vector_store(text_chunks):
-    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+    # --- CHANGE: Using local Hugging Face model instead of Google API ---
+    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
     vector_store = FAISS.from_texts(text_chunks, embedding=embeddings)
     vector_store.save_local("faiss_index")
 
 def get_conversational_chain():
-    # This is where we update the prompt for explainability
     prompt_template = """
     You are an expert technical recruiter and resume writer with 20 years of experience. Your task is to analyze a resume against a job description with full explainability.
     Analyze the provided resume against the job description context and perform the following actions, structuring your response using Markdown:
@@ -82,13 +85,20 @@ def get_conversational_chain():
     ---
     ### Your Expert Analysis Report
     """
-    model = ChatGoogleGenerativeAI(model="models/gemini-2.5-pro", temperature=0.3)
+    
+    # Using Groq by default for speed and generous free tier
+    llm = ChatGroq(model_name="llama3-8b-8192", groq_api_key=os.getenv("GROQ_API_KEY"))
+    
+    # (Optional) Uncomment the line below to use Gemini instead
+    # llm = ChatGoogleGenerativeAI(model="models/gemini-2.5-pro", temperature=0.3)
+
     prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
-    chain = load_qa_chain(model, chain_type="stuff", prompt=prompt)
+    chain = load_qa_chain(llm, chain_type="stuff", prompt=prompt)
     return chain
 
 def generate_report(resume_text):
-    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+    # --- CHANGE: Using local Hugging Face model here as well for consistency ---
+    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
     new_db = FAISS.load_local("faiss_index", embeddings, allow_dangerous_deserialization=True)
     docs = new_db.similarity_search(resume_text)
     chain = get_conversational_chain()
@@ -98,9 +108,9 @@ def generate_report(resume_text):
     )
     return response["output_text"]
 
-# --- Main Application UI ---
+# --- Main Application UI (No changes here) ---
 st.title("🤖 GenAI-Powered Resume Optimizer")
-st.write("Upload your resume, paste a job description, and get an AI-powered analysis and rewrite.")
+st.write("An intelligent tool to tailor your resume to a job description using a RAG pipeline.")
 st.write("---")
 
 if 'report_text' not in st.session_state:
@@ -125,7 +135,7 @@ col1, col2 = st.columns(2)
 with col1:
     if st.button("Process Documents 📁", use_container_width=True):
         if job_description:
-            with st.spinner("Processing documents..."):
+            with st.spinner("Processing documents... This may take a moment the first time."):
                 raw_text = job_description
                 text_chunks = get_text_chunks(raw_text)
                 get_vector_store(text_chunks)
@@ -143,7 +153,6 @@ with col2:
         else:
             st.warning("Please upload a resume to analyze.")
 
-# --- Display Report and Download Button ---
 if st.session_state.report_text:
     st.markdown("---")
     st.subheader("📊 Your Resume Analysis Report")
