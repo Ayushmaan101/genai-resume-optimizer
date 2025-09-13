@@ -87,10 +87,10 @@ def get_conversational_chain():
     """
     
     # Using Groq by default for speed and generous free tier
-    llm = ChatGroq(model_name="llama3-8b-8192", groq_api_key=os.getenv("GROQ_API_KEY"))
+    llm = ChatGroq(model_name="llama-3.1-8b-instant", groq_api_key=os.getenv("GROQ_API_KEY"))
     
     # (Optional) Uncomment the line below to use Gemini instead
-    # llm = ChatGoogleGenerativeAI(model="models/gemini-2.5-pro", temperature=0.3)
+    #llm = ChatGoogleGenerativeAI(model="models/gemini-2.5-pro", temperature=0.3)
 
     prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
     chain = load_qa_chain(llm, chain_type="stuff", prompt=prompt)
