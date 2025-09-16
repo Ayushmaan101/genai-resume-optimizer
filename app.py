@@ -34,7 +34,7 @@ try:
         google_api_key = os.getenv("GOOGLE_API_KEY")
         if google_api_key:
             genai.configure(api_key=google_api_key)
-    except Exception as e:
+except Exception as e:
         st.warning(f"Could not configure Google API key: {e}")
 
 # --- Text Extraction Function (No changes here) ---
