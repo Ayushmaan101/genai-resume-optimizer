@@ -30,7 +30,7 @@ st.set_page_config(
 )
 
 # --- API Key Configuration ---
-    try:
+try:
         google_api_key = os.getenv("GOOGLE_API_KEY")
         if google_api_key:
             genai.configure(api_key=google_api_key)
