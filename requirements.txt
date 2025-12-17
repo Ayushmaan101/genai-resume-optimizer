@@ -49,6 +49,7 @@ langchain-community==0.3.29
 langchain-core==0.3.75
 langchain-google-genai==2.0.10
 langchain-groq==0.3.8
+langchain-huggingface
 langchain-text-splitters==0.3.11
 langsmith==0.4.25
 lxml==6.0.0
